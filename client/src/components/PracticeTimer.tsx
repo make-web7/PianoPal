@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Play, Pause, Square, Save, Music, Smile, Meh, Frown, Brain, Target } from "lucide-react";
+import { useTimer } from "@/contexts/TimerContext";
 
 interface SessionData {
   name: string;
@@ -57,6 +58,7 @@ export function PracticeTimer({ onSave }: PracticeTimerProps) {
   const [sessionName, setSessionName] = useState("");
   const [description, setDescription] = useState("");
   const [focusArea, setFocusArea] = useState("");
+  const [customFocusArea, setCustomFocusArea] = useState("");
   const [mood, setMood] = useState(3);
   const [focus, setFocus] = useState(3);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -92,6 +94,7 @@ export function PracticeTimer({ onSave }: PracticeTimerProps) {
     setSessionName("");
     setDescription("");
     setFocusArea("");
+    setCustomFocusArea("");
     setMood(3);
     setFocus(3);
   };
@@ -108,11 +111,14 @@ export function PracticeTimer({ onSave }: PracticeTimerProps) {
 
   const handleConfirmSave = () => {
     if (onSave && seconds > 0) {
+      const finalFocusArea = focusArea === "Other" && customFocusArea.trim() 
+        ? customFocusArea.trim() 
+        : focusArea;
       onSave({
         name: sessionName || `Practice Session - ${new Date().toLocaleDateString()}`,
         description,
         notes,
-        focusArea,
+        focusArea: finalFocusArea,
         mood,
         focus,
         duration: seconds,
@@ -225,6 +231,15 @@ export function PracticeTimer({ onSave }: PracticeTimerProps) {
                   ))}
                 </SelectContent>
               </Select>
+              {focusArea === "Other" && (
+                <Input
+                  placeholder="Describe what you focused on..."
+                  value={customFocusArea}
+                  onChange={(e) => setCustomFocusArea(e.target.value)}
+                  className="mt-2"
+                  data-testid="input-custom-focus-area"
+                />
+              )}
             </div>
 
             <div className="space-y-2">
