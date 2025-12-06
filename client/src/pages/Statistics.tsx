@@ -1,52 +1,36 @@
-import { useState, useMemo } from "react";
-import { Clock, Calendar, TrendingUp, Flame, Award, Target } from "lucide-react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { Clock, Calendar, TrendingUp, Flame, Award, Target, Smile, Brain, Meh, Frown } from "lucide-react";
 import { StatCard } from "@/components/StatCard";
 import { WeeklyChart } from "@/components/WeeklyChart";
 import { PracticeCalendar } from "@/components/PracticeCalendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Progress } from "@/components/ui/progress";
-import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from "recharts";
 import type { PracticeSession } from "@/components/SessionList";
+import { useState } from "react";
 
-// todo: remove mock functionality
-const generateMockSessions = (): PracticeSession[] => {
-  const sessions: PracticeSession[] = [];
-  const today = new Date();
-  
-  for (let i = 0; i < 60; i++) {
-    if (Math.random() > 0.3) {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      date.setHours(Math.floor(Math.random() * 12) + 8, Math.floor(Math.random() * 60));
-      
-      sessions.push({
-        id: `session-${i}`,
-        date,
-        duration: Math.floor(Math.random() * 5400) + 600,
-        notes: Math.random() > 0.5 ? "Practice notes here" : undefined,
-      });
-    }
-  }
-  
-  return sessions.sort((a, b) => b.date.getTime() - a.date.getTime());
-};
+const COLORS = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 
 export default function Statistics() {
   const [timeRange, setTimeRange] = useState("30");
-  const [sessions] = useState<PracticeSession[]>(generateMockSessions);
+
+  const { data: sessions = [] } = useQuery<PracticeSession[]>({
+    queryKey: ["/api/sessions"],
+  });
 
   const stats = useMemo(() => {
     const days = parseInt(timeRange);
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - days);
     
-    const filteredSessions = sessions.filter((s) => s.date >= cutoff);
+    const filteredSessions = sessions.filter((s) => new Date(s.date) >= cutoff);
     const totalSeconds = filteredSessions.reduce((sum, s) => sum + s.duration, 0);
     
     const dayMap = new Map<string, number>();
     filteredSessions.forEach((s) => {
-      const key = s.date.toDateString();
+      const key = new Date(s.date).toDateString();
       dayMap.set(key, (dayMap.get(key) || 0) + s.duration);
     });
     
@@ -56,7 +40,7 @@ export default function Statistics() {
     
     let currentStreak = 0;
     const checkDate = new Date();
-    const dateSet = new Set(filteredSessions.map((s) => s.date.toDateString()));
+    const dateSet = new Set(filteredSessions.map((s) => new Date(s.date).toDateString()));
     while (dateSet.has(checkDate.toDateString())) {
       currentStreak++;
       checkDate.setDate(checkDate.getDate() - 1);
@@ -80,6 +64,33 @@ export default function Statistics() {
       }
     }
     longestStreak = Math.max(longestStreak, tempStreak);
+
+    const avgMood = filteredSessions.length > 0 
+      ? filteredSessions.reduce((sum, s) => sum + s.mood, 0) / filteredSessions.length 
+      : 0;
+    const avgFocus = filteredSessions.length > 0 
+      ? filteredSessions.reduce((sum, s) => sum + s.focus, 0) / filteredSessions.length 
+      : 0;
+
+    const focusAreaCounts = new Map<string, number>();
+    filteredSessions.forEach((s) => {
+      if (s.focusArea) {
+        focusAreaCounts.set(s.focusArea, (focusAreaCounts.get(s.focusArea) || 0) + 1);
+      }
+    });
+    const focusAreaData = Array.from(focusAreaCounts.entries())
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    const moodDistribution = [1, 2, 3, 4, 5].map((level) => ({
+      level,
+      count: filteredSessions.filter((s) => s.mood === level).length,
+    }));
+
+    const focusDistribution = [1, 2, 3, 4, 5].map((level) => ({
+      level,
+      count: filteredSessions.filter((s) => s.focus === level).length,
+    }));
     
     return {
       totalSessions: filteredSessions.length,
@@ -89,11 +100,16 @@ export default function Statistics() {
       avgPerDay,
       currentStreak,
       longestStreak,
+      avgMood,
+      avgFocus,
+      focusAreaData,
+      moodDistribution,
+      focusDistribution,
       practiceDays: Array.from(dayMap.entries()).map(([dateStr, duration]) => ({
         date: new Date(dateStr),
         duration,
       })),
-      weeklyData: filteredSessions.map((s) => ({ date: s.date, duration: s.duration })),
+      weeklyData: filteredSessions.map((s) => ({ date: new Date(s.date), duration: s.duration })),
     };
   }, [sessions, timeRange]);
 
@@ -107,13 +123,16 @@ export default function Statistics() {
       date.setDate(date.getDate() - i);
       const dateStr = date.toDateString();
       
-      const dayDuration = sessions
-        .filter((s) => s.date.toDateString() === dateStr)
-        .reduce((sum, s) => sum + s.duration, 0);
+      const daySessions = sessions.filter((s) => new Date(s.date).toDateString() === dateStr);
+      const dayDuration = daySessions.reduce((sum, s) => sum + s.duration, 0);
+      const dayMood = daySessions.length > 0 ? daySessions.reduce((sum, s) => sum + s.mood, 0) / daySessions.length : null;
+      const dayFocus = daySessions.length > 0 ? daySessions.reduce((sum, s) => sum + s.focus, 0) / daySessions.length : null;
       
       data.push({
         date: date.toLocaleDateString(undefined, { month: "short", day: "numeric" }),
         minutes: Math.round(dayDuration / 60),
+        mood: dayMood,
+        focus: dayFocus,
       });
     }
     
@@ -129,6 +148,16 @@ export default function Statistics() {
 
   const weeklyGoalMinutes = 300;
   const weeklyProgress = Math.min(100, (stats.weeklyData.reduce((sum, d) => sum + d.duration, 0) / 60 / weeklyGoalMinutes) * 100);
+
+  const getMoodLabel = (mood: number) => {
+    const labels = ["", "Frustrated", "Tired", "Neutral", "Good", "Great"];
+    return labels[Math.round(mood)] || "";
+  };
+
+  const getFocusLabel = (focus: number) => {
+    const labels = ["", "Very Distracted", "Distracted", "Neutral", "Focused", "Deeply Focused"];
+    return labels[Math.round(focus)] || "";
+  };
 
   return (
     <div className="space-y-6">
@@ -149,7 +178,7 @@ export default function Statistics() {
         </Select>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <StatCard
           title="Total Practice"
           value={formatDuration(stats.totalSeconds)}
@@ -173,6 +202,18 @@ export default function Statistics() {
           value={`${stats.currentStreak}`}
           subtitle={`Best: ${stats.longestStreak} days`}
           icon={Flame}
+        />
+        <StatCard
+          title="Avg Mood"
+          value={stats.avgMood.toFixed(1)}
+          subtitle={getMoodLabel(stats.avgMood)}
+          icon={Smile}
+        />
+        <StatCard
+          title="Avg Focus"
+          value={stats.avgFocus.toFixed(1)}
+          subtitle={getFocusLabel(stats.avgFocus)}
+          icon={Brain}
         />
       </div>
 
@@ -222,6 +263,154 @@ export default function Statistics() {
           </CardContent>
         </Card>
       </div>
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Smile className="h-5 w-5" />
+              Mood Trend
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trendData.filter((d) => d.mood !== null)}>
+                  <XAxis
+                    dataKey="date"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis
+                    domain={[1, 5]}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length && payload[0].value) {
+                        return (
+                          <div className="bg-popover border border-popover-border rounded-md p-2 shadow-md">
+                            <p className="text-sm font-medium">{payload[0].payload.date}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Mood: {(payload[0].value as number).toFixed(1)}/5
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="mood"
+                    stroke="hsl(var(--chart-4))"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Brain className="h-5 w-5" />
+              Focus Trend
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-48">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={trendData.filter((d) => d.focus !== null)}>
+                  <XAxis
+                    dataKey="date"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    interval="preserveStartEnd"
+                  />
+                  <YAxis
+                    domain={[1, 5]}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                  />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length && payload[0].value) {
+                        return (
+                          <div className="bg-popover border border-popover-border rounded-md p-2 shadow-md">
+                            <p className="text-sm font-medium">{payload[0].payload.date}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Focus: {(payload[0].value as number).toFixed(1)}/5
+                            </p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="focus"
+                    stroke="hsl(var(--chart-2))"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {stats.focusAreaData.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Target className="h-5 w-5" />
+              Practice Focus Areas
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.focusAreaData} layout="vertical">
+                  <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }} />
+                  <YAxis 
+                    type="category" 
+                    dataKey="name" 
+                    axisLine={false} 
+                    tickLine={false} 
+                    tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+                    width={120}
+                  />
+                  <Tooltip
+                    content={({ active, payload }) => {
+                      if (active && payload && payload.length) {
+                        return (
+                          <div className="bg-popover border border-popover-border rounded-md p-2 shadow-md">
+                            <p className="text-sm font-medium">{payload[0].payload.name}</p>
+                            <p className="text-sm text-muted-foreground">{payload[0].value} sessions</p>
+                          </div>
+                        );
+                      }
+                      return null;
+                    }}
+                  />
+                  <Bar dataKey="value" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
