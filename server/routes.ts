@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { insertPracticeSessionSchema } from "@shared/schema";
+import { insertPracticeSessionSchema, insertGoalsSchema } from "@shared/schema";
 
 export async function registerRoutes(
   httpServer: Server,
@@ -48,6 +48,20 @@ export async function registerRoutes(
       return res.status(404).json({ error: "Session not found" });
     }
     res.status(204).send();
+  });
+
+  app.get("/api/goals", async (req, res) => {
+    const goals = await storage.getGoals();
+    res.json(goals);
+  });
+
+  app.post("/api/goals", async (req, res) => {
+    const result = insertGoalsSchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).json({ error: result.error.issues });
+    }
+    const goals = await storage.setGoals(result.data);
+    res.json(goals);
   });
 
   return httpServer;

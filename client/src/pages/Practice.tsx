@@ -2,13 +2,16 @@ import { useState, useCallback } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { PracticeTimer } from "@/components/PracticeTimer";
 import { SessionList, type PracticeSession } from "@/components/SessionList";
+import { Metronome } from "@/components/Metronome";
+import { AudioRecorder } from "@/components/AudioRecorder";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { FileText, Clock, Calendar, X, Target, Smile, Meh, Frown, Brain } from "lucide-react";
+import { FileText, Clock, Calendar, X, Target, Smile, Meh, Frown, Brain, Mic, Play, Pause } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const getMoodIcon = (mood: number) => {
   if (mood <= 2) return Frown;
@@ -29,6 +32,7 @@ const getFocusLabel = (focus: number) => {
 export default function Practice() {
   const { toast } = useToast();
   const [selectedSession, setSelectedSession] = useState<PracticeSession | null>(null);
+  const [recordingUrl, setRecordingUrl] = useState<string | null>(null);
 
   const { data: sessions = [] } = useQuery<PracticeSession[]>({
     queryKey: ["/api/sessions"],
@@ -53,6 +57,7 @@ export default function Practice() {
         title: "Session saved!",
         description: "Your practice session has been recorded.",
       });
+      setRecordingUrl(null);
     },
     onError: () => {
       toast({
@@ -89,54 +94,68 @@ export default function Practice() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Practice</h1>
-        <p className="text-muted-foreground">Start a new practice session or view your history</p>
+        <p className="text-muted-foreground">Start a new practice session with metronome and recording tools</p>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <PracticeTimer onSave={handleSaveSession} />
-        
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Quick Tips
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-3">
-              <div className="p-3 rounded-md bg-muted/50">
-                <p className="text-sm font-medium">Warm up first</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Start with scales and simple exercises to prepare your fingers
-                </p>
-              </div>
-              <div className="p-3 rounded-md bg-muted/50">
-                <p className="text-sm font-medium">Use the metronome</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Practice slowly with a metronome for better timing
-                </p>
-              </div>
-              <div className="p-3 rounded-md bg-muted/50">
-                <p className="text-sm font-medium">Take breaks</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Rest every 25-30 minutes to prevent fatigue
-                </p>
-              </div>
-              <div className="p-3 rounded-md bg-muted/50">
-                <p className="text-sm font-medium">Record yourself</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Listen back to identify areas for improvement
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <Tabs defaultValue="timer" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="timer">Timer</TabsTrigger>
+          <TabsTrigger value="metronome">Metronome</TabsTrigger>
+          <TabsTrigger value="recorder">Recorder</TabsTrigger>
+        </TabsList>
 
-      <SessionList
-        sessions={sessions}
-        onSessionClick={setSelectedSession}
-      />
+        <TabsContent value="timer" className="space-y-6">
+          <div className="grid gap-6 lg:grid-cols-2">
+            <PracticeTimer onSave={handleSaveSession} />
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <FileText className="h-5 w-5" />
+                  Quick Tips
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="p-3 rounded-md bg-muted/50">
+                    <p className="text-sm font-medium">Warm up first</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Start with scales and simple exercises
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-md bg-muted/50">
+                    <p className="text-sm font-medium">Use the metronome</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Switch to Metronome tab for tempo practice
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-md bg-muted/50">
+                    <p className="text-sm font-medium">Record yourself</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Use Recorder tab to capture your performance
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="metronome">
+          <Metronome defaultBpm={120} />
+        </TabsContent>
+
+        <TabsContent value="recorder">
+          <AudioRecorder />
+        </TabsContent>
+      </Tabs>
+
+      <div>
+        <h2 className="text-xl font-semibold mb-4">Recent Sessions</h2>
+        <SessionList
+          sessions={sessions}
+          onSessionClick={setSelectedSession}
+        />
+      </div>
 
       <Dialog open={!!selectedSession} onOpenChange={() => setSelectedSession(null)}>
         <DialogContent className="max-w-lg">

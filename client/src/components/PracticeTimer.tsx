@@ -51,9 +51,7 @@ const focusAreaOptions = [
 ];
 
 export function PracticeTimer({ onSave }: PracticeTimerProps) {
-  const [seconds, setSeconds] = useState(0);
-  const [isRunning, setIsRunning] = useState(false);
-  const [notes, setNotes] = useState("");
+  const { seconds, isRunning, notes, setNotes, start, pause, reset, formatTime } = useTimer();
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [sessionName, setSessionName] = useState("");
   const [description, setDescription] = useState("");
@@ -61,36 +59,11 @@ export function PracticeTimer({ onSave }: PracticeTimerProps) {
   const [customFocusArea, setCustomFocusArea] = useState("");
   const [mood, setMood] = useState(3);
   const [focus, setFocus] = useState(3);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const formatTime = useCallback((totalSeconds: number) => {
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
-    return `${hours.toString().padStart(2, "0")}:${minutes
-      .toString()
-      .padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  }, []);
-
-  useEffect(() => {
-    if (isRunning) {
-      intervalRef.current = setInterval(() => {
-        setSeconds((s) => s + 1);
-      }, 1000);
-    } else if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [isRunning]);
-
-  const handleStart = () => setIsRunning(true);
-  const handlePause = () => setIsRunning(false);
+  const handleStart = () => start();
+  const handlePause = () => pause();
   const handleStop = () => {
-    setIsRunning(false);
-    setSeconds(0);
-    setNotes("");
+    reset();
     setSessionName("");
     setDescription("");
     setFocusArea("");
@@ -101,7 +74,7 @@ export function PracticeTimer({ onSave }: PracticeTimerProps) {
 
   const handleSaveClick = () => {
     if (seconds > 0) {
-      setIsRunning(false);
+      pause();
       const today = new Date();
       const defaultName = `Practice Session - ${today.toLocaleDateString()}`;
       setSessionName(defaultName);

@@ -14,6 +14,7 @@ import Statistics from "@/pages/Statistics";
 import MetronomePage from "@/pages/MetronomePage";
 import RecorderPage from "@/pages/RecorderPage";
 import ThemePage from "@/pages/ThemePage";
+import GoalsPage from "@/pages/Goals";
 
 function Router() {
   return (
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/" component={Dashboard} />
       <Route path="/practice" component={Practice} />
       <Route path="/stats" component={Statistics} />
+      <Route path="/goals" component={GoalsPage} />
       <Route path="/metronome" component={MetronomePage} />
       <Route path="/recorder" component={RecorderPage} />
       <Route path="/theme" component={ThemePage} />

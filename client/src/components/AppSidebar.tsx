@@ -20,12 +20,14 @@ import {
   Mic,
   Palette,
   Music2,
+  Target,
 } from "lucide-react";
 
 const navigationItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Practice", url: "/practice", icon: Play },
   { title: "Statistics", url: "/stats", icon: BarChart3 },
+  { title: "Goals", url: "/goals", icon: Target },
 ];
 
 const toolItems = [

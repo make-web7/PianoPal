@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type PracticeSession, type InsertPracticeSession } from "@shared/schema";
+import { type User, type InsertUser, type PracticeSession, type InsertPracticeSession, type Goals, type InsertGoals } from "@shared/schema";
 import { randomUUID } from "crypto";
 
 export interface IStorage {
@@ -11,15 +11,25 @@ export interface IStorage {
   createSession(session: InsertPracticeSession): Promise<PracticeSession>;
   updateSession(id: string, session: Partial<InsertPracticeSession>): Promise<PracticeSession | undefined>;
   deleteSession(id: string): Promise<boolean>;
+
+  getGoals(): Promise<Goals | undefined>;
+  setGoals(goals: InsertGoals): Promise<Goals>;
 }
 
 export class MemStorage implements IStorage {
   private users: Map<string, User>;
   private sessions: Map<string, PracticeSession>;
+  private goals: Goals | undefined;
 
   constructor() {
     this.users = new Map();
     this.sessions = new Map();
+    this.goals = {
+      id: "default",
+      dailyMinutes: 30,
+      weeklyMinutes: 210,
+      monthlyMinutes: 900,
+    };
   }
 
   async getUser(id: string): Promise<User | undefined> {
@@ -60,6 +70,7 @@ export class MemStorage implements IStorage {
       mood: insertSession.mood,
       focus: insertSession.focus,
       duration: insertSession.duration,
+      recordingUrl: insertSession.recordingUrl ?? null,
       date: new Date(),
     };
     this.sessions.set(id, session);
@@ -77,6 +88,21 @@ export class MemStorage implements IStorage {
 
   async deleteSession(id: string): Promise<boolean> {
     return this.sessions.delete(id);
+  }
+
+  async getGoals(): Promise<Goals | undefined> {
+    return this.goals;
+  }
+
+  async setGoals(goalsData: InsertGoals): Promise<Goals> {
+    const updated: Goals = {
+      id: "default",
+      dailyMinutes: goalsData.dailyMinutes ?? 30,
+      weeklyMinutes: goalsData.weeklyMinutes ?? 210,
+      monthlyMinutes: goalsData.monthlyMinutes ?? 900,
+    };
+    this.goals = updated;
+    return updated;
   }
 }
 
